@@ -10,14 +10,12 @@ dotenv.config();
 connectDB();
 
 const app = express();
-app.use(express.json()); // Parse JSON bodies
+app.use(express.json());
 
-// Routes
 app.use('/api/payments', paymentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Error Handling
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;

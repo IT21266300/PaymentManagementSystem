@@ -1,55 +1,119 @@
 const User = require('../models/User');
-const Transaction = require('../models/Transaction');
-const Order = require('../models/Order');
-const { sendEmailNotification } = require('../utils/emailService');
 
-const addPaymentMethod = async (req, res) => {
-  const { email, type, details } = req.body;
-  const user = await User.findOne({ email }) || new User({ email });
-  user.paymentMethods.push({ type, details });
-  await user.save();
-  res.status(201).json({ message: 'Payment method added', paymentMethods: user.paymentMethods });
+// Add a new payment method
+exports.addPaymentMethod = async (req, res) => {
+  try {
+    const { methodType, cardNumberLastFour, bankAccountNumberLastFour, isDefault } = req.body;
+    const user = await User.findById(req.user.id); // Assumes req.user from auth middleware
+
+    const newPaymentMethod = {
+      methodType,
+      cardNumberLastFour: methodType !== 'bank_transfer' ? cardNumberLastFour : undefined,
+      bankAccountNumberLastFour: methodType === 'bank_transfer' ? bankAccountNumberLastFour : undefined,
+      isDefault: isDefault || user.paymentMethods.length === 0, // First method is default if not specified
+    };
+
+    user.paymentMethods.push(newPaymentMethod);
+    await user.save();
+
+    res.status(201).json({ message: 'Payment method added successfully', paymentMethod: newPaymentMethod });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
-const updatePaymentMethod = async (req, res) => {
-  const { email, oldDetails, newType, newDetails } = req.body;
-  const user = await User.findOne({ email });
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  const index = user.paymentMethods.findIndex(pm => pm.details === oldDetails);
-  if (index === -1) return res.status(404).json({ message: 'Payment method not found' });
-  user.paymentMethods[index] = { type: newType, details: newDetails };
-  await user.save();
-  res.json({ message: 'Payment method updated', paymentMethods: user.paymentMethods });
+// Update a payment method
+exports.updatePaymentMethod = async (req, res) => {
+  try {
+    const { paymentMethodId, methodType, cardNumberLastFour, bankAccountNumberLastFour, isDefault } = req.body;
+    const user = await User.findById(req.user.id);
+
+    const paymentMethod = user.paymentMethods.id(paymentMethodId);
+    if (!paymentMethod) {
+      return res.status(404).json({ message: 'Payment method not found' });
+    }
+
+    paymentMethod.methodType = methodType || paymentMethod.methodType;
+    paymentMethod.cardNumberLastFour = methodType !== 'bank_transfer' ? (cardNumberLastFour || paymentMethod.cardNumberLastFour) : undefined;
+    paymentMethod.bankAccountNumberLastFour = methodType === 'bank_transfer' ? (bankAccountNumberLastFour || paymentMethod.bankAccountNumberLastFour) : undefined;
+    if (isDefault !== undefined) paymentMethod.isDefault = isDefault;
+
+    await user.save();
+    res.status(200).json({ message: 'Payment method updated successfully', paymentMethod });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
-const removePaymentMethod = async (req, res) => {
-  const { email, details } = req.body;
-  const user = await User.findOne({ email });
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  user.paymentMethods = user.paymentMethods.filter(pm => pm.details !== details);
-  await user.save();
-  res.json({ message: 'Payment method removed', paymentMethods: user.paymentMethods });
+// Remove a payment method
+exports.removePaymentMethod = async (req, res) => {
+  try {
+    const { paymentMethodId } = req.params;
+    const user = await User.findById(req.user.id);
+
+    const paymentMethod = user.paymentMethods.id(paymentMethodId);
+    if (!paymentMethod) {
+      return res.status(404).json({ message: 'Payment method not found' });
+    }
+
+    user.paymentMethods.pull(paymentMethodId);
+    await user.save();
+
+    res.status(200).json({ message: 'Payment method removed successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
-const getBillingDetails = async (req, res) => {
-  const { email } = req.query;
-  const user = await User.findOne({ email }).populate('billingHistory');
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  res.json({ billingHistory: user.billingHistory });
+// Get all payment methods
+exports.getPaymentMethods = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.status(200).json(user.paymentMethods);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
-const setupRecurringPayment = async (req, res) => {
-  const { email, amount } = req.body;
-  const user = await User.findOne({ email });
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  user.subscription = {
-    active: true,
-    nextPaymentDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    amount,
-  };
-  await user.save();
-  sendEmailNotification(email, 'Subscription Setup', 'Your recurring payment is set up!');
-  res.json({ message: 'Recurring payment set up', subscription: user.subscription });
+// Update billing address
+exports.updateBillingAddress = async (req, res) => {
+  try {
+    const { street, city, state, postalCode, country } = req.body;
+    const user = await User.findById(req.user.id);
+
+    user.billingAddress = {
+      street: street || user.billingAddress.street,
+      city: city || user.billingAddress.city,
+      state: state || user.billingAddress.state,
+      postalCode: postalCode || user.billingAddress.postalCode,
+      country: country || user.billingAddress.country,
+    };
+
+    await user.save();
+    res.status(200).json({ message: 'Billing address updated successfully', billingAddress: user.billingAddress });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
-module.exports = { addPaymentMethod, updatePaymentMethod, removePaymentMethod, getBillingDetails, setupRecurringPayment };
+// Get billing address
+exports.getBillingAddress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.status(200).json(user.billingAddress);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get user profile (basic info)
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password'); // Exclude password
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = exports;

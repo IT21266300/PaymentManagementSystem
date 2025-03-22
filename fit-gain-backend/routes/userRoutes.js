@@ -1,12 +1,14 @@
 const express = require('express');
 const router = express.Router();
+const userController = require('../controllers/userController');
 const { auth } = require('../middleware/auth');
-const { addPaymentMethod, updatePaymentMethod, removePaymentMethod, getBillingDetails, setupRecurringPayment } = require('../controllers/userController');
 
-router.post('/payment-methods', auth, addPaymentMethod);
-router.put('/payment-methods', auth, updatePaymentMethod);
-router.delete('/payment-methods', auth, removePaymentMethod);
-router.get('/billing', auth, getBillingDetails);
-router.post('/subscription', auth, setupRecurringPayment);
+router.post('/payment-methods', auth, userController.addPaymentMethod);
+router.put('/payment-methods', auth, userController.updatePaymentMethod);
+router.delete('/payment-methods/:paymentMethodId', auth, userController.removePaymentMethod);
+router.get('/payment-methods', auth, userController.getPaymentMethods);
+router.put('/billing-address', auth, userController.updateBillingAddress);
+router.get('/billing-address', auth, userController.getBillingAddress);
+router.get('/profile', auth, userController.getProfile);
 
 module.exports = router;

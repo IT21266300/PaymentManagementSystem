@@ -2,6 +2,7 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const { sendEmail } = require('../utils/emailService'); // Mock email utility
+const { processPayment } = require('../config/paymentGateway');
 
 // Mock payment gateway function (for academic purposes)
 const mockPaymentGateway = (amount, paymentMethod) => {
@@ -13,10 +14,9 @@ const mockPaymentGateway = (amount, paymentMethod) => {
 // Process a payment for an order
 exports.processPayment = async (req, res) => {
   try {
-    const { orderId, paymentMethodId } = req.body;
+    const { orderId, paymentMethodId, gateway } = req.body;
     const user = await User.findById(req.user.id); // Assumes req.user from auth middleware
     const order = await Order.findById(orderId);
-
     if (!order || order.userId.toString() !== user._id.toString()) {
       return res.status(404).json({ message: 'Order not found' });
     }
@@ -26,18 +26,18 @@ exports.processPayment = async (req, res) => {
       return res.status(400).json({ message: 'Payment method not found' });
     }
 
-    const paymentResult = mockPaymentGateway(order.finalAmount, paymentMethod.methodType);
-
+    const paymentResult = processPayment(gateway || 'stripe', order.finalAmount, paymentMethod.methodType);
     const transaction = new Transaction({
       userId: user._id,
       orderId: order._id,
       amount: order.finalAmount,
       paymentMethod: paymentMethod.methodType,
       status: paymentResult.success ? 'completed' : 'failed',
-      errorMessage: paymentResult.success ? null : paymentResult.error,
+      errorMessage: paymentResult.error,
     });
 
     await transaction.save();
+    
     if (paymentResult.success) {
       order.transactionId = transaction._id;
       order.status = 'processing';
