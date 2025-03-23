@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -18,9 +19,10 @@ import { useAuth } from '../hooks/useAuth';
 import { formatCurrency } from '../utils/formatCurrency';
 import { validateDiscountCode } from '../utils/validateInput';
 
-const Checkout = ({ history }) => {
+const Checkout = () => { // Remove { history } prop
   const { user } = useAuth();
   const { loading, error, data, get, post } = useApi();
+  const navigate = useNavigate(); // Use navigate hook
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedMethod, setSelectedMethod] = useState('');
   const [discountCode, setDiscountCode] = useState('');
@@ -31,7 +33,7 @@ const Checkout = ({ history }) => {
   // Fetch payment methods on mount
   useEffect(() => {
     if (!user) {
-      history.push('/login');
+      navigate('/login'); // Use navigate instead of history.push
       return;
     }
 
@@ -49,23 +51,23 @@ const Checkout = ({ history }) => {
     };
 
     fetchPaymentMethods();
-  }, [user, history, get]);
+  }, [user, navigate, get]); // Update dependency array with navigate
 
   // Handle navigation
   const handleNavigate = (path) => {
-    history.push(path);
+    navigate(path); // Use navigate instead of history.push
   };
 
-  // Handle discount code application (mock logic)
+  // Handle discount code application
   const applyDiscount = () => {
     const validation = validateDiscountCode(discountCode);
     if (!validation.isValid) {
       console.error(validation.message);
       return;
     }
-  
+
     if (discountCode === 'FIT10') {
-      setDiscountApplied(order.finalAmount * 0.1);
+      setDiscountApplied(order.finalAmount * 0.1); // 10% discount
     } else {
       setDiscountApplied(0);
     }
@@ -88,7 +90,7 @@ const Checkout = ({ history }) => {
       const response = await post('/api/payments/process', paymentData);
       if (response.transaction.status === 'completed') {
         setPaymentSuccess(true);
-        setTimeout(() => history.push('/profile'), 2000); // Redirect after success
+        setTimeout(() => navigate('/profile'), 2000); // Use navigate instead of history.push
       }
     } catch (err) {
       console.error('Payment failed:', err);
@@ -147,7 +149,7 @@ const Checkout = ({ history }) => {
                     {method.methodType.replace('_', ' ').toUpperCase()} -{' '}
                     {method.cardNumberLastFour
                       ? `Ending in ${method.cardNumberLastFour}`
-                      : `Account ending in ${method.bankAccountNumberLastFour}`} 
+                      : `Account ending in ${method.bankAccountNumberLastFour}`}
                     {method.isDefault && ' (Default)'}
                   </MenuItem>
                 ))}

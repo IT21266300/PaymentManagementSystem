@@ -1,23 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, TextField, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions, FormControl, InputLabel, Select, MenuItem, CircularProgress } from '@mui/material';
+import {
+  Container,
+  Typography,
+  Box,
+  TextField,
+  Button,
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import { useAuth } from '../hooks/useAuth';
 import * as userService from '../services/userService';
 import PaymentMethodCard from '../components/payment/PaymentMethodCard';
 import TransactionList from '../components/payment/TransactionList';
 import { validatePaymentMethod, validateBillingAddress } from '../utils/validateInput';
 
-const Profile = ({ history }) => {
+const Profile = () => { // Remove { history } prop
   const { user, logout } = useAuth();
+  const navigate = useNavigate(); // Use navigate hook
   const [profile, setProfile] = useState(null);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [billingAddress, setBillingAddress] = useState({});
   const [loading, setLoading] = useState(true);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [newMethod, setNewMethod] = useState({ methodType: '', cardNumberLastFour: '', bankAccountNumberLastFour: '', isDefault: false });
+  const [error, setError] = useState(null); // Added for error feedback
 
   useEffect(() => {
     if (!user) {
-      history.push('/login');
+      navigate('/login'); // Use navigate instead of history.push
       return;
     }
 
@@ -28,29 +48,30 @@ const Profile = ({ history }) => {
         setPaymentMethods(profileData.paymentMethods || []);
         setBillingAddress(profileData.billingAddress || {});
       } catch (error) {
-        console.error('Failed to fetch profile:', error.message);
+        setError(error.message || 'Failed to load profile data');
       } finally {
         setLoading(false);
       }
     };
 
     fetchProfile();
-  }, [user, history]);
+  }, [user, navigate]); // Update dependency array with navigate
 
   const handleAddPaymentMethod = async () => {
     const validation = validatePaymentMethod(newMethod);
     if (!validation.isValid) {
-      console.error(validation.message);
+      setError(validation.message);
       return;
     }
-  
+
     try {
       const response = await userService.addPaymentMethod(newMethod);
       setPaymentMethods([...paymentMethods, response.paymentMethod]);
       setOpenAddDialog(false);
       setNewMethod({ methodType: '', cardNumberLastFour: '', bankAccountNumberLastFour: '', isDefault: false });
+      setError(null); // Clear error on success
     } catch (error) {
-      console.error('Failed to add payment method:', error.message);
+      setError(error.message || 'Failed to add payment method');
     }
   };
 
@@ -58,23 +79,25 @@ const Profile = ({ history }) => {
     try {
       await userService.removePaymentMethod(paymentMethodId);
       setPaymentMethods(paymentMethods.filter(method => method._id !== paymentMethodId));
+      setError(null); // Clear error on success
     } catch (error) {
-      console.error('Failed to remove payment method:', error.message);
+      setError(error.message || 'Failed to remove payment method');
     }
   };
 
   const handleUpdateBillingAddress = async () => {
     const validation = validateBillingAddress(billingAddress);
     if (!validation.isValid) {
-      console.error(validation.message);
+      setError(validation.message);
       return;
     }
-  
+
     try {
       const updatedAddress = await userService.updateBillingAddress(billingAddress);
       setBillingAddress(updatedAddress.billingAddress);
+      setError(null); // Clear error on success
     } catch (error) {
-      console.error('Failed to update billing address:', error.message);
+      setError(error.message || 'Failed to update billing address');
     }
   };
 
@@ -93,6 +116,11 @@ const Profile = ({ history }) => {
         <Typography variant="h4" gutterBottom>
           My Profile
         </Typography>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6">Email: {profile?.email}</Typography>
           <Typography variant="h6">Name: {profile?.fullName}</Typography>
@@ -135,13 +163,14 @@ const Profile = ({ history }) => {
                 <MenuItem value="paypal">PayPal</MenuItem>
               </Select>
             </FormControl>
-            {newMethod.methodType && newMethod.methodType !== 'bank_transfer' && (
+            {newMethod.methodType && newMethod.methodType !== 'bank_transfer' && newMethod.methodType !== 'paypal' && (
               <TextField
                 label="Last 4 Digits of Card"
                 fullWidth
                 margin="normal"
                 value={newMethod.cardNumberLastFour}
                 onChange={(e) => setNewMethod({ ...newMethod, cardNumberLastFour: e.target.value })}
+                inputProps={{ maxLength: 4 }} // Limit to 4 digits
               />
             )}
             {newMethod.methodType === 'bank_transfer' && (
@@ -151,6 +180,7 @@ const Profile = ({ history }) => {
                 margin="normal"
                 value={newMethod.bankAccountNumberLastFour}
                 onChange={(e) => setNewMethod({ ...newMethod, bankAccountNumberLastFour: e.target.value })}
+                inputProps={{ maxLength: 4 }} // Limit to 4 digits
               />
             )}
             <FormControl fullWidth sx={{ mt: 2 }}>
@@ -224,9 +254,11 @@ const Profile = ({ history }) => {
             </Button>
           </Grid>
         </Grid>
+
+        {/* Transaction List */}
         <Box sx={{ mt: 4 }}>
-  <TransactionList />
-</Box>
+          <TransactionList />
+        </Box>
       </Box>
     </Container>
   );

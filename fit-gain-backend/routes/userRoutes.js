@@ -1,14 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const userController = require('../controllers/userController');
-const { auth } = require('../middleware/auth');
+const {
+  loginUser,
+  addPaymentMethod,
+  updatePaymentMethod,
+  removePaymentMethod,
+  getPaymentMethods,
+  updateBillingAddress,
+  getBillingAddress,
+  getProfile,
+} = require('../controllers/userController');
+const authMiddleware = require('../middleware/auth'); // Assuming you have this
 
-router.post('/payment-methods', auth, userController.addPaymentMethod);
-router.put('/payment-methods', auth, userController.updatePaymentMethod);
-router.delete('/payment-methods/:paymentMethodId', auth, userController.removePaymentMethod);
-router.get('/payment-methods', auth, userController.getPaymentMethods);
-router.put('/billing-address', auth, userController.updateBillingAddress);
-router.get('/billing-address', auth, userController.getBillingAddress);
-router.get('/profile', auth, userController.getProfile);
+router.post('/login', loginUser);
+
+// Protected routes (require authentication)
+router.get('/profile', authMiddleware, getProfile);
+router.post('/payment-methods', authMiddleware, addPaymentMethod);
+router.put('/payment-methods', authMiddleware, updatePaymentMethod);
+router.delete('/payment-methods/:paymentMethodId', authMiddleware, removePaymentMethod);
+router.get('/payment-methods', authMiddleware, getPaymentMethods);
+router.put('/billing-address', authMiddleware, updateBillingAddress);
+router.get('/billing-address', authMiddleware, getBillingAddress);
 
 module.exports = router;

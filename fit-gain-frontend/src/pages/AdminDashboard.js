@@ -8,21 +8,23 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import { useAuth } from '../hooks/useAuth';
 import useApi from '../hooks/useApi';
 import TransactionTable from '../components/admin/TransactionTable';
 import ReportChart from '../components/admin/ReportChart';
 
-const AdminDashboard = ({ history }) => {
+const AdminDashboard = () => { // No history prop needed
   const { user } = useAuth();
   const { loading, error, data, get } = useApi();
+  const navigate = useNavigate(); // Use hook for navigation
   const [tabValue, setTabValue] = useState(0);
   const [transactions, setTransactions] = useState([]);
 
   // Redirect non-admins and fetch initial data
   useEffect(() => {
     if (!user || user.role !== 'admin') {
-      history.push('/login');
+      navigate('/login'); // Use navigate instead of history.push
       return;
     }
 
@@ -36,7 +38,7 @@ const AdminDashboard = ({ history }) => {
     };
 
     fetchTransactions();
-  }, [user, history, get]);
+  }, [user, navigate, get]); // Update dependency array
 
   // Handle tab change
   const handleTabChange = (event, newValue) => {

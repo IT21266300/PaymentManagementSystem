@@ -7,14 +7,16 @@ import {
   Grid,
   Paper,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import { useAuth } from '../hooks/useAuth';
 
-const Home = ({ history }) => {
+const Home = () => { // Remove { history } prop
   const { user, logout } = useAuth();
+  const navigate = useNavigate(); // Use navigate hook
 
   // Handle navigation
   const handleNavigate = (path) => {
-    history.push(path);
+    navigate(path); // Use navigate instead of history.push
   };
 
   return (
