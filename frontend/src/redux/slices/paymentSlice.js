@@ -40,7 +40,7 @@ export const getTransactionReport = createAsyncThunk('payment/getTransactionRepo
 
 const paymentSlice = createSlice({
   name: 'payment',
-  initialState: { payments: [], total: 0, page: 1, pages: 1, status: 'idle', error: null, report: null },
+  initialState: { transactions: [], total: 0, page: 1, pages: 1, status: 'idle', error: null },
   reducers: {},
   extraReducers: (builder) => {
     builder
@@ -49,7 +49,7 @@ const paymentSlice = createSlice({
       })
       .addCase(fetchPayments.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.payments = action.payload.transactions;
+        state.transactions = action.payload.transactions; // Changed from payments to transactions
         state.total = action.payload.total;
         state.page = action.payload.page;
         state.pages = action.payload.pages;
