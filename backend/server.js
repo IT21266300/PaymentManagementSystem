@@ -4,13 +4,14 @@ const cors = require('cors');
 const paymentRoutes = require('./routes/paymentRoutes');
 const { connectDB } = require('./config/db');
 require('dotenv').config();
+const path = require('path');
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static('uploads')); // Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database connection
 connectDB();

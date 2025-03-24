@@ -34,26 +34,38 @@ exports.addPaymentMethod = async (req, res) => {
 };
 
 // Upload payment evidence
+// In your paymentController.js
 exports.uploadEvidence = async (req, res) => {
   try {
-    console.log('Uploading evidence for paymentId:', req.body.paymentId);
-    console.log('Uploaded file details:', req.file);
+    console.log('Upload request received. Files:', req.file); // Debug log
     
+    if (!req.file) {
+      console.log('No file uploaded');
+      return res.status(400).json({ message: 'No evidence file provided' });
+    }
+
     const paymentId = req.body.paymentId;
     const payment = await Payment.findById(paymentId);
     
-    if (!payment || payment.userId !== req.user._id) {
-      console.warn('Payment not found or unauthorized:', { 
-        paymentExists: !!payment,
-        userMatch: payment?.userId === req.user._id
-      });
-      return res.status(404).json({ message: 'Payment not found or unauthorized' });
+    if (!payment) {
+      // Clean up the uploaded file if payment not found
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ message: 'Payment not found' });
     }
-    
+
+    // If there was previous evidence, delete it
+    if (payment.evidence) {
+      try {
+        fs.unlinkSync(payment.evidence);
+      } catch (err) {
+        console.error('Error deleting old evidence:', err);
+      }
+    }
+
     payment.evidence = req.file.path;
     await payment.save();
-    console.log('Updated payment with evidence:', payment);
     
+    console.log('Evidence saved to payment:', payment); // Debug log
     res.json({ message: 'Evidence uploaded successfully', payment });
   } catch (error) {
     console.error('Error in uploadEvidence:', error);
@@ -222,6 +234,29 @@ exports.getTransactionReport = async (req, res) => {
     res.json(report);
   } catch (error) {
     console.error('Error in getTransactionReport:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+// paymentController.js - Add this new endpoint
+exports.getAllPayments = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await Payment.countDocuments();
+    const payments = await Payment.find()
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      payments,
+      total,
+      page,
+      pages: Math.ceil(total / limit)
+    });
+  } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
 };

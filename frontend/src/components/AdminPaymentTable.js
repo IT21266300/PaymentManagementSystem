@@ -25,8 +25,17 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 
 const AdminPaymentTable = () => {
   const dispatch = useDispatch();
-  const { payments = [], status } = useSelector((state) => state.payment);
+  // Access both payments and transactions from state
+  const { payments = [], status } = useSelector((state) => ({
+    payments: state.payment.payments,
+    status: state.payment.status
+  }));
   const [search, setSearch] = useState('');
+
+    // Add debug logs
+    console.log('Redux payment state:', useSelector(state => state.payment));
+    console.log('Payments data:', payments);
+  
   
   // Use useMemo to prevent re-parsing on every render
   const user = useMemo(() => {
@@ -34,9 +43,11 @@ const AdminPaymentTable = () => {
     return userData ? JSON.parse(userData) : null;
   }, []);
 
+  
   useEffect(() => {
     if (user && user.isAdmin) {
       dispatch(fetchPayments({ 
+        admin: true, // This tells the thunk to fetch payments, not transactions
         headers: { 
           'user-id': user.id, 
           'is-admin': 'true' 

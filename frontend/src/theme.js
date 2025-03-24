@@ -12,6 +12,16 @@ const theme = createTheme({
   typography: {
     fontFamily: 'Roboto, Arial, sans-serif',
   },
+  components: {
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          fontWeight: 'bold',
+          textTransform: 'capitalize'
+        }
+      }
+    }
+  },
 });
 
 export default theme;
