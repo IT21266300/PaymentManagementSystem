@@ -24,9 +24,11 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 
 const TransactionHistory = () => {
   const dispatch = useDispatch();
-  const { payments, status } = useSelector((state) => state.payment);
+  const { transactions, status } = useSelector((state) => state.payment); // Changed from payments to transactions
   
-  // Use useMemo to prevent re-parsing on every render
+  console.log('Redux payment state:', useSelector((state) => state.payment));
+  console.log('Transactions data:', transactions);
+
   const user = useMemo(() => {
     const userData = localStorage.getItem('user');
     return userData ? JSON.parse(userData) : null;
@@ -34,14 +36,9 @@ const TransactionHistory = () => {
 
   useEffect(() => {
     if (user) {
-      dispatch(fetchPayments({ 
-        headers: { 
-          'user-id': user.id, 
-          'is-admin': user.isAdmin.toString() 
-        } 
-      }));
+      dispatch(fetchPayments({ page: 1, limit: 10 }));
     }
-  }, [dispatch, user]); // user is now stable
+  }, [dispatch, user]);
 
   return (
     <Box sx={{ padding: 4 }}>
@@ -60,44 +57,56 @@ const TransactionHistory = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {status === 'loading' ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : payments && payments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center">
-                  No transactions found
-                </TableCell>
-              </TableRow>
+  {status === 'loading' ? (
+    <TableRow>
+      <TableCell colSpan={5} align="center">
+        Loading...
+      </TableCell>
+    </TableRow>
+  ) : !transactions || transactions.length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={5} align="center">
+        No transactions found
+      </TableCell>
+    </TableRow>
+  ) : (
+    transactions.map((transaction) => {
+      // Add null checks
+      const transactionDate = transaction.createdAt 
+        ? new Date(transaction.createdAt).toLocaleDateString() 
+        : 'N/A';
+      const amount = transaction.amount 
+        ? `$${transaction.amount.toFixed(2)}` 
+        : 'N/A';
+      const status = transaction.status || 'N/A';
+      const type = transaction.type || 'N/A';
+      
+      return (
+        <TableRow key={transaction._id} sx={{ '&:hover': { backgroundColor: '#f5f5f5' } }}>
+          <TableCell>{transactionDate}</TableCell>
+          <TableCell>{amount}</TableCell>
+          <TableCell>{status}</TableCell>
+          <TableCell>{type}</TableCell>
+          <TableCell>
+            {transaction.paymentId?.evidence ? (
+              <Button
+                variant="outlined"
+                size="small"
+                href={`http://localhost:5000/${transaction.paymentId.evidence}`}
+                target="_blank"
+                sx={{ textTransform: 'none' }}
+              >
+                View
+              </Button>
             ) : (
-              payments && payments.map((transaction) => (
-                <TableRow key={transaction._id} sx={{ '&:hover': { backgroundColor: '#f5f5f5' } }}>
-                  <TableCell>{new Date(transaction.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>${transaction.amount.toFixed(2)}</TableCell>
-                  <TableCell>{transaction.status}</TableCell>
-                  <TableCell>{transaction.type}</TableCell>
-                  <TableCell>
-                    {transaction.paymentId?.evidence ? (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        href={`http://localhost:5000/${transaction.paymentId.evidence}`}
-                        target="_blank"
-                        sx={{ textTransform: 'none' }}
-                      >
-                        View
-                      </Button>
-                    ) : (
-                      'N/A'
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+              'N/A'
             )}
-          </TableBody>
+          </TableCell>
+        </TableRow>
+      );
+    })
+  )}
+</TableBody>
         </Table>
       </TableContainer>
     </Box>

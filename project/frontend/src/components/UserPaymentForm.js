@@ -31,28 +31,51 @@ const UserPaymentForm = () => {
       alert('Please enter an account number and ensure your cart has items.');
       return;
     }
-
+  
     try {
+      // 1. First create the payment record
       const paymentResponse = await dispatch(
-        addPaymentMethod({ accountNumber, amount: total }, { headers: { 'user-id': user.id } })
+        addPaymentMethod({ 
+          accountNumber, 
+          amount: total 
+        }, { 
+          headers: { 
+            'user-id': user.id,
+            'Content-Type': 'application/json'
+          } 
+        })
       ).unwrap();
-
+  
+      // 2. If we have evidence, upload it
       if (evidence) {
         const formData = new FormData();
         formData.append('evidence', evidence);
         formData.append('paymentId', paymentResponse._id);
+        
+        console.log('FormData contents:'); // Debug log
+        for (let [key, value] of formData.entries()) {
+          console.log(key, value);
+        }
+  
         await dispatch(
-          uploadEvidence(formData, { headers: { 'user-id': user.id } })
+          uploadEvidence(formData, { 
+            headers: { 
+              'user-id': user.id,
+              'Content-Type': 'multipart/form-data'
+            } 
+          })
         ).unwrap();
       }
-
+  
       alert('Payment submitted successfully!');
       setAccountNumber('');
       setEvidence(null);
     } catch (error) {
-      alert('Error submitting payment: ' + error.message);
+      console.error('Payment submission error:', error); // Debug log
+      alert('Error submitting payment: ' + (error.message || 'Unknown error'));
     }
   };
+  
 
   return (
     <Box sx={{ padding: 4 }}>

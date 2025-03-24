@@ -1,10 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../services/api';
 
-export const fetchPayments = createAsyncThunk('payment/fetchPayments', async ({ page = 1, limit = 10 }) => {
-  const response = await api.get(`/payments/transactions?page=${page}&limit=${limit}`);
-  return response.data;
-});
+export const fetchPayments = createAsyncThunk(
+  'payment/fetchPayments',
+  async ({ admin = false, page = 1, limit = 10 }) => {
+    const endpoint = admin ? '/payments' : '/payments/transactions';
+    const response = await api.get(`${endpoint}?page=${page}&limit=${limit}`);
+    return { data: response.data, isAdmin: admin };
+  }
+);
 
 export const addPaymentMethod = createAsyncThunk('payment/addPaymentMethod', async (data) => {
   const response = await api.post('/payments/method', data);
@@ -40,7 +44,16 @@ export const getTransactionReport = createAsyncThunk('payment/getTransactionRepo
 
 const paymentSlice = createSlice({
   name: 'payment',
-  initialState: { payments: [], total: 0, page: 1, pages: 1, status: 'idle', error: null, report: null },
+  initialState: {
+    payments: [],
+    transactions: [],
+    total: 0,
+    page: 1,
+    pages: 1,
+    report: null, // Added report field
+    status: 'idle',
+    error: null,
+  },
   reducers: {},
   extraReducers: (builder) => {
     builder
@@ -49,10 +62,16 @@ const paymentSlice = createSlice({
       })
       .addCase(fetchPayments.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.payments = action.payload.transactions;
-        state.total = action.payload.total;
-        state.page = action.payload.page;
-        state.pages = action.payload.pages;
+        if (action.payload.isAdmin) {
+          state.payments = action.payload.data.payments || action.payload.data;
+        } else {
+          state.transactions = action.payload.data.transactions || action.payload.data;
+        }
+        if (action.payload.data.total) {
+          state.total = action.payload.data.total;
+          state.page = action.payload.data.page;
+          state.pages = action.payload.data.pages;
+        }
       })
       .addCase(fetchPayments.rejected, (state, action) => {
         state.status = 'failed';
@@ -73,11 +92,30 @@ const paymentSlice = createSlice({
         const index = state.payments.findIndex((p) => p._id === action.meta.arg);
         if (index !== -1) state.payments[index].status = 'rejected';
       })
-      .addCase(issueRefund.fulfilled, (state) => {
+      .addCase(issueRefund.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(issueRefund.fulfilled, (state, action) => {
         state.status = 'succeeded';
+        const index = state.transactions.findIndex((t) => t._id === action.meta.arg);
+        if (index !== -1) {
+          state.transactions[index].status = 'refunded';
+        }
+      })
+      .addCase(issueRefund.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message;
+      })
+      .addCase(getTransactionReport.pending, (state) => {
+        state.status = 'loading';
       })
       .addCase(getTransactionReport.fulfilled, (state, action) => {
+        state.status = 'succeeded';
         state.report = action.payload;
+      })
+      .addCase(getTransactionReport.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message;
       });
   },
 });

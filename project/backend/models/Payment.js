@@ -1,10 +1,19 @@
 const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
-  userId: { type: String, required: true }, // Using string for demo (from frontend JSON)
+  userId: { type: String, required: true },
   accountNumber: { type: String, required: true },
   amount: { type: Number, required: true },
-  evidence: { type: String }, // Path to uploaded file (PDF/image)
+  evidence: { 
+    type: String,
+    validate: {
+      validator: function(v) {
+        // Simple check for path format
+        return v === null || typeof v === 'string';
+      },
+      message: props => `${props.value} is not a valid file path!`
+    }
+  },
   status: { 
     type: String, 
     enum: ['pending', 'confirmed', 'rejected'], 

@@ -35,6 +35,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import AdminPaymentTable from '../components/AdminPaymentTable';
 import TransactionHistory from '../components/TransactionHistory';
 import { PieChart, LineChart } from 'recharts';
+import AdminRefundPanel from '../components/AdminRefundPanel';
 
 // Styled components
 const StyledPaper = styled(Paper)(({ theme }) => ({
@@ -144,11 +145,19 @@ const AdminDashboard = () => {
   }
 
   // Format date for last login
-  const lastLogin = new Date(user.lastLogin);
-  const formattedLastLogin = new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  }).format(lastLogin);
+  let formattedLastLogin = "Unknown";
+  try {
+    if (user.lastLogin) {
+      const lastLogin = new Date(user.lastLogin);
+      formattedLastLogin = new Intl.DateTimeFormat('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }).format(lastLogin);
+    }
+  } catch (error) {
+    console.error("Error formatting last login date:", error);
+    // Continue with default value
+  }
 
   return (
     <Box sx={{ 
@@ -363,6 +372,7 @@ const AdminDashboard = () => {
           >
             <Tab icon={<PaymentIcon />} label="Payments" />
             <Tab icon={<ShoppingBasketIcon />} label="Transactions" />
+            <Tab icon={<MoneyOffIcon />} label="Refunds" />
           </Tabs>
         </Paper>
 
@@ -394,6 +404,25 @@ const AdminDashboard = () => {
             <TransactionHistory />
           </StyledPaper>
         )}
+
+{activeTab === 2 && (
+  <StyledPaper elevation={3}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Typography variant="h6" sx={{ fontWeight: 'medium', color: '#333' }}>
+        Refund Management & Reports
+      </Typography>
+      <Button 
+        variant="outlined" 
+        size="small" 
+        startIcon={<DownloadIcon />}
+        onClick={() => alert('Export functionality would go here')}
+      >
+        Export Report
+      </Button>
+    </Box>
+    <AdminRefundPanel />
+  </StyledPaper>
+)}
       </Box>
     </Box>
   );
