@@ -144,19 +144,11 @@ const AdminDashboard = () => {
   }
 
   // Format date for last login
-  let formattedLastLogin = "Unknown";
-  try {
-    if (user.lastLogin) {
-      const lastLogin = new Date(user.lastLogin);
-      formattedLastLogin = new Intl.DateTimeFormat('en-US', {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-      }).format(lastLogin);
-    }
-  } catch (error) {
-    console.error("Error formatting last login date:", error);
-    // Continue with default value
-  }
+  const lastLogin = new Date(user.lastLogin);
+  const formattedLastLogin = new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(lastLogin);
 
   return (
     <Box sx={{ 
