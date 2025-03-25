@@ -26,7 +26,60 @@ const UserPaymentForm = () => {
   const [evidence, setEvidence] = useState(null);
   const user = JSON.parse(localStorage.getItem('user')); // From mock login
 
+  const [accountNumberError, setAccountNumberError] = useState('');
+  const [evidenceError, setEvidenceError] = useState('');
+  
+
+// Add validation functions
+const validateAccountNumber = (number) => {
+  if (!number) {
+    setAccountNumberError('Account number is required');
+    return false;
+  } else if (!/^\d{8,17}$/.test(number)) {
+    setAccountNumberError('Account number must be 8-17 digits');
+    return false;
+  }
+  setAccountNumberError('');
+  return true;
+};
+
+const validateEvidence = (file) => {
+  if (!file) {
+    setEvidenceError('Evidence file is required');
+    return false;
+  }
+  
+  // Check file size (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    setEvidenceError('File size must be less than 5MB');
+    return false;
+  }
+  // Check file size (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    setEvidenceError('File size must be less than 5MB');
+    return false;
+  }
+  
+  // Check file type
+  const acceptedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+  if (!acceptedTypes.includes(file.type)) {
+    setEvidenceError('Only JPEG, PNG, and PDF files are allowed');
+    return false;
+  }
+  
+  setEvidenceError('');
+  return true;
+};
+
   const handleSubmit = async () => {
+
+    const isAccountValid = validateAccountNumber(accountNumber);
+    const isEvidenceValid = validateEvidence(evidence);
+    
+    if (!isAccountValid || !isEvidenceValid) {
+      return; // Stop submission if validation fails
+    }
+
     if (!accountNumber || !total) {
       alert('Please enter an account number and ensure your cart has items.');
       return;
@@ -75,6 +128,20 @@ const UserPaymentForm = () => {
       alert('Error submitting payment: ' + (error.message || 'Unknown error'));
     }
   };
+
+  const handleAccountChange = (e) => {
+    const value = e.target.value;
+    setAccountNumber(value);
+    // Optional: validate on change instead of just on submit
+    if (accountNumberError) validateAccountNumber(value);
+  };
+  
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setEvidence(file);
+    // Optional: validate on change instead of just on submit
+    if (file) validateEvidence(file);
+  };
   
 
   return (
@@ -87,23 +154,31 @@ const UserPaymentForm = () => {
           Total to Pay: ${total.toFixed(2) || '0.00'}
         </Typography>
         <TextField
-          label="Bank Account Number"
-          variant="outlined"
-          fullWidth
-          value={accountNumber}
-          onChange={(e) => setAccountNumber(e.target.value)}
-          sx={{ mb: 2 }}
-          placeholder="Enter your account number"
-        />
-        <Input
-          type="file"
-          onChange={(e) => setEvidence(e.target.files[0])}
-          inputProps={{ accept: 'image/*,.pdf' }}
-          sx={{ mb: 2, display: 'block' }}
-        />
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Upload payment evidence (e.g., receipt screenshot or PDF)
+        label="Bank Account Number"
+        variant="outlined"
+        fullWidth
+        value={accountNumber}
+        onChange={handleAccountChange}
+        error={!!accountNumberError}
+        helperText={accountNumberError}
+        sx={{ mb: 2 }}
+        placeholder="Enter your account number (8-17 digits)"
+        inputProps={{ maxLength: 17 }}
+      />
+      <Input
+        type="file"
+        onChange={handleFileChange}
+        inputProps={{ accept: 'image/jpeg,image/png,application/pdf' }}
+        sx={{ mb: 2, display: 'block' }}
+      />
+      {evidenceError && (
+        <Typography variant="caption" color="error" sx={{ mb: 1, display: 'block' }}>
+          {evidenceError}
         </Typography>
+      )}
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Upload payment evidence (JPEG, PNG, PDF only, max 5MB)
+      </Typography>
         <Button
           variant="contained"
           color="primary"

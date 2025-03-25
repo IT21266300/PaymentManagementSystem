@@ -11,6 +11,9 @@ const {
   issueRefund,
   getTransactionReport,
   getAllPayments,
+  createRefundRequest, // New
+  getRefundRequests,  // New
+  handleRefundRequest,
 } = require('../controllers/paymentController');
 const multer = require('multer');
 
@@ -53,5 +56,8 @@ router.put('/reject/:id', protect, rejectPayment);   // Admin only
 router.post('/refund/:id', protect, issueRefund);    // Admin only
 router.get('/report', protect, getTransactionReport); // Admin only
 router.get('/', protect, getAllPayments); 
+router.post('/refund-request', protect, createRefundRequest); // New endpoint
+router.get('/refund-requests', protect, getRefundRequests);  // New endpoint
+router.post('/handle-refund-request', protect, handleRefundRequest); // New endpoint
 
 module.exports = router;

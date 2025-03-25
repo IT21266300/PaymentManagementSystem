@@ -1,5 +1,6 @@
 const Payment = require('../models/Payment');
 const Transaction = require('../models/Transaction');
+const RefundRequest = require('../models/RefundRequest');
 const fs = require('fs');
 const path = require('path');
 
@@ -257,6 +258,107 @@ exports.getAllPayments = async (req, res) => {
       pages: Math.ceil(total / limit)
     });
   } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+exports.createRefundRequest = async (req, res) => {
+  try {
+    const { transactionId, reason } = req.body;
+    const transaction = await Transaction.findById(transactionId).populate('paymentId');
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+    if (transaction.userId !== req.user._id) {
+      return res.status(403).json({ message: 'Unauthorized to request refund for this transaction' });
+    }
+    if (transaction.status !== 'completed') {
+      return res.status(400).json({ message: 'Can only request refunds for completed transactions' });
+    }
+    const existingRequest = await RefundRequest.findOne({ transactionId, status: 'pending' });
+    if (existingRequest) {
+      return res.status(400).json({ message: 'A pending refund request already exists for this transaction' });
+    }
+
+    const refundRequest = new RefundRequest({
+      transactionId,
+      userId: req.user._id,
+      reason,
+    });
+    await refundRequest.save();
+    res.status(201).json({ message: 'Refund request submitted successfully', refundRequest });
+  } catch (error) {
+    console.error('Error creating refund request:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+// Fetch all refund requests (admin only)
+exports.getRefundRequests = async (req, res) => {
+  try {
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    const refundRequests = await RefundRequest.find()
+      .populate({
+        path: 'transactionId',
+        populate: { path: 'paymentId' },
+      })
+      .lean();
+    res.json(refundRequests);
+  } catch (error) {
+    console.error('Error fetching refund requests:', error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+// Approve or reject a refund request (admin only)
+exports.handleRefundRequest = async (req, res) => {
+  try {
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    const { requestId, action } = req.body; // action: 'approve' or 'reject'
+    const refundRequest = await RefundRequest.findById(requestId);
+    if (!refundRequest) {
+      return res.status(404).json({ message: 'Refund request not found' });
+    }
+    if (refundRequest.status !== 'pending') {
+      return res.status(400).json({ message: 'Refund request has already been processed' });
+    }
+
+    refundRequest.status = action === 'approve' ? 'approved' : 'rejected';
+    await refundRequest.save();
+
+    if (action === 'approve') {
+      // Trigger the refund process
+      const transaction = await Transaction.findById(refundRequest.transactionId).populate('paymentId');
+      if (!transaction) {
+        return res.status(404).json({ message: 'Transaction not found' });
+      }
+      const payment = transaction.paymentId;
+      if (payment.status !== 'confirmed' && payment.status !== 'pending') {
+        return res.status(400).json({ 
+          message: `Cannot refund a payment with status "${payment.status}". Only "confirmed" or "pending" payments can be refunded.` 
+        });
+      }
+
+      const refundTransaction = new Transaction({
+        paymentId: payment._id,
+        userId: payment.userId,
+        amount: payment.amount,
+        status: 'refunded',
+        type: 'refund',
+      });
+      await refundTransaction.save();
+
+      transaction.status = 'refunded';
+      await transaction.save();
+    }
+
+    res.json({ message: `Refund request ${action} successfully`, refundRequest });
+  } catch (error) {
+    console.error('Error handling refund request:', error);
     res.status(500).json({ message: 'Server error', error });
   }
 };

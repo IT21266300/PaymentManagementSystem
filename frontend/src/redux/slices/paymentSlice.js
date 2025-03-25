@@ -42,19 +42,39 @@ export const getTransactionReport = createAsyncThunk('payment/getTransactionRepo
   return response.data;
 });
 
+export const createRefundRequest = createAsyncThunk('payment/createRefundRequest', async ({ transactionId, reason }) => {
+  const response = await api.post('/payments/refund-request', { transactionId, reason });
+  return response.data;
+});
+
+export const getRefundRequests = createAsyncThunk('payment/getRefundRequests', async () => {
+  const response = await api.get('/payments/refund-requests');
+  return response.data;
+});
+
+export const handleRefundRequest = createAsyncThunk('payment/handleRefundRequest', async ({ requestId, action }) => {
+  const response = await api.post('/payments/handle-refund-request', { requestId, action });
+  return response.data;
+});
+
 const paymentSlice = createSlice({
   name: 'payment',
   initialState: {
     payments: [],
     transactions: [],
+    refundRequests: [],
     total: 0,
     page: 1,
     pages: 1,
-    report: null, // Added report field
+    report: null,
     status: 'idle',
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearError: (state) => { // Move clearError here
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchPayments.pending, (state) => {
@@ -104,7 +124,7 @@ const paymentSlice = createSlice({
       })
       .addCase(issueRefund.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message;
+        state.error = action.payload?.message || action.error.message || 'Failed to issue refund';
       })
       .addCase(getTransactionReport.pending, (state) => {
         state.status = 'loading';
@@ -116,8 +136,50 @@ const paymentSlice = createSlice({
       .addCase(getTransactionReport.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.error.message;
+      })
+      .addCase(createRefundRequest.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(createRefundRequest.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        // Optionally update transactions to reflect the refund request status
+      })
+      .addCase(createRefundRequest.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload?.message || action.error.message || 'Failed to submit refund request';
+      })
+      .addCase(getRefundRequests.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(getRefundRequests.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.refundRequests = action.payload;
+      })
+      .addCase(getRefundRequests.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message;
+      })
+      .addCase(handleRefundRequest.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(handleRefundRequest.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        const index = state.refundRequests.findIndex((r) => r._id === action.meta.arg.requestId);
+        if (index !== -1) {
+          state.refundRequests[index].status = action.payload.refundRequest.status;
+        }
+        const transactionIndex = state.transactions.findIndex((t) => t._id === action.payload.refundRequest.transactionId);
+        if (transactionIndex !== -1 && action.payload.refundRequest.status === 'approved') {
+          state.transactions[transactionIndex].status = 'refunded';
+        }
+      })
+      .addCase(handleRefundRequest.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload?.message || action.error.message || 'Failed to handle refund request';
       });
   },
 });
+
+export const { clearError } = paymentSlice.actions;
 
 export default paymentSlice.reducer;
